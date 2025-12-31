@@ -18,10 +18,9 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
 
+staticSites:
   # Frontend Static Site
-  - type: web
-    name: game-frontend
-    env: static
+  - name: game-frontend
     rootDir: frontend
     buildCommand: npm install && npm run build
     publishDir: dist
