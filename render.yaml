@@ -18,22 +18,20 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
 
-staticSites:
-  # Frontend Static Site
-  - name: game-frontend
+  # Frontend Web Service (Workaround for Static Site)
+  # using 'npx serve' to host the static files as a Node service
+  - type: web
+    name: game-frontend
+    env: node
     rootDir: frontend
     buildCommand: npm install && npm run build
-    publishDir: dist
+    startCommand: npx serve -s dist -p $PORT --single
     envVars:
       - key: VITE_API_URL
         fromService:
           type: web
           name: game-backend
           property: url
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
 
 databases:
   - name: game-db
