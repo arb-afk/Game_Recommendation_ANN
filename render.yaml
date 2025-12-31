@@ -18,12 +18,17 @@ services:
         value: 3.11.9
 
   # Frontend Static Site
-  - type: static
+  - type: static_site
     name: game-frontend
-    env: static
     rootDir: frontend
     buildCommand: npm install && npm run build
     publishDir: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: game-backend
+          property: url
     envVars:
       - key: VITE_API_URL
         fromService:
