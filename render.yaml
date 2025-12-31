@@ -19,8 +19,9 @@ services:
         value: 3.11.9
 
   # Frontend Static Site
-  - type: static_site
+  - type: web
     name: game-frontend
+    env: static
     rootDir: frontend
     buildCommand: npm install && npm run build
     publishDir: dist
@@ -37,4 +38,4 @@ services:
 
 databases:
   - name: game-db
-    plan: free # Note: Expires after 90 days on Render
+    plan: free
