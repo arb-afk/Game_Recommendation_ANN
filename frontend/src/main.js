@@ -7,7 +7,11 @@ import AllGames from './components/AllGames.vue'
 import MyGames from './components/MyGames.vue'
 
 // Configure Axios
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+let apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+if (apiUrl && !apiUrl.startsWith('http')) {
+  apiUrl = `https://${apiUrl}`
+}
+axios.defaults.baseURL = apiUrl
 
 const routes = [
   { path: '/', redirect: '/recommended' },

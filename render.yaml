@@ -31,7 +31,7 @@ services:
         fromService:
           type: web
           name: game-backend
-          property: url
+          property: host
 
 databases:
   - name: game-db
