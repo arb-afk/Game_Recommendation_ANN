@@ -1,6 +1,6 @@
 <template>
   <div class="stats-container" v-if="chartData.labels && chartData.labels.length > 0">
-    <h3 class="text-xl font-bold mb-4 text-center">Your AI Taste Profile</h3>
+    <h3 class="text-xl font-bold mb-4 text-center">Your Taste Profile</h3>
     <div class="chart-wrapper">
       <Radar :data="chartData" :options="chartOptions" />
     </div>
