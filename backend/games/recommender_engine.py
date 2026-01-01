@@ -1,14 +1,21 @@
 import os
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
 from django.conf import settings
 from .models import Rating, Game, Download
 from django.contrib.auth.models import User
 import pickle
 from sklearn.preprocessing import MultiLabelBinarizer
+
+# Optional TensorFlow import
+try:
+    import tensorflow as tf
+    from tensorflow import keras
+    from tensorflow.keras import layers
+    TF_AVAILABLE = True
+except ImportError:
+    TF_AVAILABLE = False
+    print("TensorFlow not found. Recommender engine running in Lite mode (no neural network).")
 
 class RecommenderEngine:
     def __init__(self):
@@ -25,7 +32,10 @@ class RecommenderEngine:
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
         
-        self.load_model()
+        if TF_AVAILABLE:
+            self.load_model()
+        else:
+            print("Skipping model load: TensorFlow not available.")
 
     def load_model(self):
         """Load the trained model and encoders if they exist."""
@@ -47,6 +57,10 @@ class RecommenderEngine:
 
     def train(self):
         """Train the Hybrid Recommendation Model (User CF + Content Based)."""
+        if not TF_AVAILABLE:
+            print("Cannot train: TensorFlow not installed.")
+            return False
+
         print("Fetching data for training...")
         
         # 1. Fetch Interactions
@@ -196,12 +210,19 @@ class RecommenderEngine:
         return True
 
     def predict_for_user(self, user_id, top_n=20):
-        """Predict top N games for a user."""
-        if self.model is None or self.mlb is None:
-            return []
+        """Predict top N games for a user. Fallback to popularity if no model."""
+        
+        # --- FALLBACK MODE (No TF or No Model) ---
+        if not TF_AVAILABLE or self.model is None or self.mlb is None:
+            # Fallback: Return top games by recommendations/popularity
+            # This is a simple heuristic to ensure the app works on free tier hosting
+            all_games = Game.objects.all().order_by('-recommendations')[:top_n]
+            return [g.id for g in all_games]
             
         if user_id not in self.user2user_encoded:
-            return []
+            # Cold start: Return popular games
+            all_games = Game.objects.all().order_by('-recommendations')[:top_n]
+            return [g.id for g in all_games]
             
         encoded_user_id = self.user2user_encoded[user_id]
         
