@@ -5,6 +5,8 @@
       Please enter a User ID in the navigation bar to view your games.
     </div>
     <div v-else>
+      <UserStats :userId="userId" />
+      
       <div class="search-bar">
         <input 
           type="text" 
@@ -46,11 +48,13 @@
 <script>
 import axios from 'axios'
 import GameCard from './GameCard.vue'
+import UserStats from './UserStats.vue'
 
 export default {
   name: 'MyGames',
   components: {
-    GameCard
+    GameCard,
+    UserStats
   },
   props: {
     userId: {

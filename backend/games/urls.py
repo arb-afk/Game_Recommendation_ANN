@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import GameViewSet, RatingViewSet, ReviewViewSet, DownloadViewSet, UserViewSet
+from .stats_views import user_genre_stats
 
 router = DefaultRouter()
 router.register(r'games', GameViewSet, basename='game')
@@ -11,6 +12,7 @@ router.register(r'users', UserViewSet, basename='user')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('user-stats/', user_genre_stats, name='user-stats'),
 ]
 
 

@@ -2,13 +2,14 @@ django
 djangorestframework
 django-cors-headers
 django-decouple
-pandas
-numpy
-# tensorflow-cpu removed for deployment
-scikit-learn
+# Standard deployment tools
 gunicorn
 whitenoise
-dj-database-url
-psycopg2-binary
-scipy
-joblib
+# Data tools (optional for Lite Mode)
+# pandas
+# numpy
+# scikit-learn
+# scipy
+# joblib
+# Database (SQLite default for PythonAnywhere free tier, so psycopg2 not needed)
+# psycopg2-binary

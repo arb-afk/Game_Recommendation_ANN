@@ -1,13 +1,22 @@
 import os
-import numpy as np
-import pandas as pd
 from django.conf import settings
 from .models import Rating, Game, Download
 from django.contrib.auth.models import User
 import pickle
-from sklearn.preprocessing import MultiLabelBinarizer
 
-# Optional TensorFlow import
+# --- OPTIONAL IMPORTS (Lazy Loading) ---
+# We wrap these to allow the app to run in "Lite Mode" (e.g. on free hosting)
+# without installing heavy libraries like pandas/numpy/tensorflow.
+
+try:
+    import numpy as np
+    import pandas as pd
+    from sklearn.preprocessing import MultiLabelBinarizer
+    ML_LIBS_AVAILABLE = True
+except ImportError:
+    ML_LIBS_AVAILABLE = False
+    print("ML libraries (numpy/pandas/sklearn) not found. Running in Lite Mode.")
+
 try:
     import tensorflow as tf
     from tensorflow import keras
@@ -15,7 +24,7 @@ try:
     TF_AVAILABLE = True
 except ImportError:
     TF_AVAILABLE = False
-    print("TensorFlow not found. Recommender engine running in Lite mode (no neural network).")
+    print("TensorFlow not found. Neural network features disabled.")
 
 class RecommenderEngine:
     def __init__(self):
@@ -25,17 +34,18 @@ class RecommenderEngine:
         self.user_encoded2user = {}
         self.game2game_encoded = {}
         self.game_encoded2game = {}
-        self.mlb = None # MultiLabelBinarizer for genres
-        self.game_popularity = {} # Store log(popularity) for games
+        self.mlb = None 
+        self.game_popularity = {} 
         self.model = None
         
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
         
-        if TF_AVAILABLE:
+        # Only load model if we have the necessary libraries
+        if TF_AVAILABLE and ML_LIBS_AVAILABLE:
             self.load_model()
         else:
-            print("Skipping model load: TensorFlow not available.")
+            print("Skipping model load: Missing dependencies.")
 
     def load_model(self):
         """Load the trained model and encoders if they exist."""
@@ -56,9 +66,9 @@ class RecommenderEngine:
                 self.model = None
 
     def train(self):
-        """Train the Hybrid Recommendation Model (User CF + Content Based)."""
-        if not TF_AVAILABLE:
-            print("Cannot train: TensorFlow not installed.")
+        """Train the Hybrid Recommendation Model."""
+        if not TF_AVAILABLE or not ML_LIBS_AVAILABLE:
+            print("Cannot train: Missing ML dependencies (TensorFlow, Pandas, etc).")
             return False
 
         print("Fetching data for training...")
@@ -100,21 +110,15 @@ class RecommenderEngine:
         self.game_popularity = {} # Reset
         
         # Fetch all games efficiently
-        # Use simple .values() to avoid object creation overhead and huge SQL IN clause
         all_games_data = Game.objects.all().values('id', 'genres', 'recommendations')
-        
         game_ids_set = set(game_ids)
         
         for g_data in all_games_data:
             gid = g_data['id']
             if gid in game_ids_set:
-                # Genre
                 raw_genres = g_data['genres']
                 genres_list = [genre.strip() for genre in raw_genres.split(';')] if raw_genres else []
                 game_genres[gid] = genres_list
-                
-                # Popularity (Log Transformation)
-                # Log1p(x) = log(1 + x) handles 0s and compresses large range
                 recs = g_data['recommendations'] if g_data['recommendations'] else 0
                 self.game_popularity[gid] = np.log1p(recs)
             
@@ -128,20 +132,16 @@ class RecommenderEngine:
         df["user"] = df["user_id"].map(self.user2user_encoded)
         df["game"] = df["game_id"].map(self.game2game_encoded)
         
-        # Normalize ratings
         min_rating = 1.0
         max_rating = 5.0
         df["rating"] = df["rating"].apply(lambda x: (x - min_rating) / (max_rating - min_rating))
         
-        # Inputs
         user_input_data = df["user"].values
         game_input_data = df["game"].values
         
-        # Genre input
         genre_input_list = [game_genres[gid] for gid in df["game_id"].values]
         genre_input_data = self.mlb.transform(genre_input_list)
         
-        # Popularity input
         popularity_input_data = np.array([self.game_popularity.get(gid, 0.0) for gid in df["game_id"].values])
         
         y = df["rating"].values
@@ -151,30 +151,23 @@ class RecommenderEngine:
         num_games = len(self.game2game_encoded)
         embedding_size = 50
         
-        # --- Input Layers ---
         user_input = layers.Input(shape=(1,), name="user_input")
         game_input = layers.Input(shape=(1,), name="game_input")
         genre_input = layers.Input(shape=(num_genres,), name="genre_input")
-        popularity_input = layers.Input(shape=(1,), name="popularity_input") # Single float value
+        popularity_input = layers.Input(shape=(1,), name="popularity_input") 
         
-        # --- Embeddings ---
         user_embedding = layers.Embedding(num_users, embedding_size, name="user_embedding")(user_input)
         user_vec = layers.Flatten()(user_embedding)
         
         game_embedding = layers.Embedding(num_games, embedding_size, name="game_embedding")(game_input)
         game_vec = layers.Flatten()(game_embedding)
         
-        # --- Interaction ---
         prod = layers.Dot(axes=1, name="dot_product")([user_vec, game_vec])
         
-        # --- Feature Processing ---
         genre_dense = layers.Dense(32, activation="relu", name="genre_dense")(genre_input)
         
-        # --- Concatenation ---
-        # Add popularity to the mix
         concat = layers.Concatenate()([user_vec, game_vec, prod, genre_dense, popularity_input])
         
-        # Deep Layers
         dense1 = layers.Dense(64, activation='relu')(concat)
         dropout1 = layers.Dropout(0.2)(dense1)
         dense2 = layers.Dense(32, activation='relu')(dropout1)
@@ -210,17 +203,16 @@ class RecommenderEngine:
         return True
 
     def predict_for_user(self, user_id, top_n=20):
-        """Predict top N games for a user. Fallback to popularity if no model."""
+        """Predict top N games for a user."""
         
-        # --- FALLBACK MODE (No TF or No Model) ---
-        if not TF_AVAILABLE or self.model is None or self.mlb is None:
-            # Fallback: Return top games by recommendations/popularity
-            # This is a simple heuristic to ensure the app works on free tier hosting
+        # --- FALLBACK MODE ---
+        if not TF_AVAILABLE or not ML_LIBS_AVAILABLE or self.model is None:
+            # Simple fallback to most recommended/popular games
+            # This runs with PURE Django ORM, no numpy/pandas needed
             all_games = Game.objects.all().order_by('-recommendations')[:top_n]
             return [g.id for g in all_games]
             
         if user_id not in self.user2user_encoded:
-            # Cold start: Return popular games
             all_games = Game.objects.all().order_by('-recommendations')[:top_n]
             return [g.id for g in all_games]
             
@@ -241,21 +233,7 @@ class RecommenderEngine:
         user_input = np.array([encoded_user_id] * len(candidate_ids))
         game_input = np.array([self.game2game_encoded[gid] for gid in candidate_ids])
         
-        # Optimizing prediction fetch
-        # Fetch genres and popularity for candidates efficiently
-        # Since we have self.game_popularity in memory from load_model/train, use it
-        # But we still need genres.
-        
-        # Optimization: Fetch genres only if we don't have them in memory.
-        # But for now, let's just fetch them to be safe as self.game_popularity doesn't store genres
-        # A better production system would cache {id -> features} entirely.
-        
-        # We'll re-fetch just for candidates to ensure correctness
-        # Use .values() again for speed
-        # Optimization: Fetch ALL games to avoid SQLite "too many SQL variables" error
-        # caused by passing 65k+ IDs to id__in
         all_games_data = Game.objects.all().values('id', 'genres', 'recommendations')
-        
         cand_map = {d['id']: d for d in all_games_data if d['id'] in set(candidate_ids)}
         
         genre_lists = []
@@ -264,13 +242,10 @@ class RecommenderEngine:
         for gid in candidate_ids:
             if gid in cand_map:
                 d = cand_map[gid]
-                # Genre
                 raw = d['genres']
                 g_list = [g.strip() for g in raw.split(';')] if raw else []
                 genre_lists.append(g_list)
                 
-                # Popularity - prefer the trained value if available to match scale, 
-                # otherwise compute fresh log1p
                 if gid in self.game_popularity:
                     pop = self.game_popularity[gid]
                 else:

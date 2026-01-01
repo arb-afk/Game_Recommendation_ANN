@@ -1,27 +1,26 @@
 # Game Recommender System
 
-A web application for rating, downloading, and reviewing games, built with Django REST Framework backend and Vue.js frontend. This system is designed to collect user interaction data for training an artificial neural network recommender system.
+A web application for rating, downloading, and reviewing games, built with Django REST Framework backend and Vue.js frontend. This system includes an artificial neural network recommender system trained on user interaction data.
 
 ## Features
 
-- **Recommended Games Page**: Displays top-rated games based on ratings and downloads
-- **All Games Page**: Browse all available games with search and genre filtering
-- **My Games Page**: View games downloaded by the current user
-- **Game Details Modal**: View detailed information including:
-  - Average rating
-  - Total downloads count
-  - Total reviews count
-  - User's personal rating (if logged in)
-  - Download/Remove download functionality
-  - Recent reviews
+- **Recommended Games**: AI-driven recommendations based on user ratings and downloads.
+- **Browse All Games**: Explore the full catalog with search and genre filtering.
+- **My Games**: Track your downloads and personal library.
+- **Game Details**: View average ratings, download counts, and recent reviews.
+- **Interactive UI**: Rate games (1-5 stars), download/remove games, and leave reviews.
 
 ## Tech Stack
 
-- **Backend**: Django 4.2, Django REST Framework
-- **Frontend**: Vue.js 3, Vue Router, Axios
-- **Build Tool**: Vite
+- **Backend**: Django 4.2, Django REST Framework, TensorFlow (Keras)
+- **Frontend**: Vue.js 3, Vite, Axios
+- **ML/Data**: Pandas, NumPy, Scikit-learn
 
 ## Setup Instructions
+
+### Prerequisites
+- Python 3.10+
+- Node.js & npm
 
 ### Backend Setup
 
@@ -30,44 +29,44 @@ A web application for rating, downloading, and reviewing games, built with Djang
 cd backend
 ```
 
-2. Create a virtual environment (recommended):
+2. Create and activate a virtual environment:
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
 ```
 
 3. Install dependencies:
 ```bash
-pip install -r ../requirements.txt
+pip install -r requirements.txt
 ```
 
 4. Run migrations:
 ```bash
-python manage.py makemigrations
 python manage.py migrate
 ```
 
-5. Create a superuser (optional, for admin access):
+5. (Optional) Populate data and train the model:
 ```bash
-python manage.py createsuperuser
-```
-
-6. Import games from CSV file:
-```bash
+# Import games from CSV
 python manage.py import_csv_data
+
+# Optional: Populate with sample/random data for testing
+python manage.py restore_downloads
+python manage.py randomize_ratings
+
+# Train the recommender engine
+python manage.py train_recommender
 ```
-This will import all games from `a_steam_data_2021_2025.csv` in the project root.
 
-Options:
-- `--limit N`: Import only first N games (for testing)
-- `--clear`: Clear existing games before importing
-
-7. Start the Django development server:
+6. Start the development server:
 ```bash
 python manage.py runserver
 ```
 
-The backend API will be available at `http://localhost:8000`
+The backend API will be available at `http://127.0.0.1:8000`
 
 ### Frontend Setup
 
@@ -86,59 +85,39 @@ npm install
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:8080`
+The frontend will be available at `http://localhost:5173`
 
-## API Endpoints
+## Management Commands
 
-- `GET /api/games/` - List all games
-- `GET /api/games/recommended/` - Get recommended games
-- `GET /api/games/my_games/` - Get user's downloaded games
-- `GET /api/games/{id}/details/` - Get detailed game information
-- `POST /api/ratings/` - Create a rating
-- `PUT /api/ratings/{id}/` - Update a rating
-- `POST /api/downloads/` - Record a game download
-- `GET /api/reviews/?game_id={id}` - Get reviews for a game
-- `POST /api/reviews/` - Create a review
+The backend includes several management commands for data maintenance:
+
+- `import_csv_data`: Imports games from `a_steam_data_2021_2025.csv`.
+- `train_recommender`: Trains the collaborative filtering model using current ratings and downloads.
+- `restore_downloads`: Restores initial download counts from the CSV recommendations field.
+- `randomize_ratings`: Generates random rating data for testing the recommendation engine.
+- `randomize_downloads`: Generates random download data.
+- `populate_sample_data`: Adds a small set of sample data for quick testing.
+- `check_setup`: Verifies that the environment and database are correctly configured.
 
 ## Usage
 
-1. Start both the Django backend and Vue.js frontend servers
-2. Open `http://localhost:8080` in your browser
-3. Enter a User ID in the navigation bar (you can use any integer, or create users through Django admin)
-4. Browse games, rate them, download them, and leave reviews
-5. The data collected will be stored in the SQLite database and can be used for training your ANN recommender system
+1. Start both the Django backend and Vue.js frontend servers.
+2. Open `http://localhost:5173` in your browser.
+3. Enter a User ID in the navigation bar to simulate different users.
+4. Interact with games (rate, download, review) to generate data.
+5. Periodically run `python manage.py train_recommender` to update the recommendation model based on new interactions.
 
 ## Database Models
 
-- **Game**: Stores game information from CSV (appid, name, title, release_year, release_date, genres, categories, price, recommendations, developer, publisher)
-- **Rating**: User ratings for games (1-5 stars)
-- **Review**: User-written reviews for games
-- **Download**: Tracks which users have downloaded which games
-- **User**: Django's built-in user model
-
-The Game model is based on the Steam data CSV structure with fields:
-- `appid`: Unique Steam App ID
-- `name`/`title`: Game name
-- `release_year`/`release_date`: Release information
-- `genres`: Semicolon-separated list of genres
-- `categories`: Semicolon-separated list of categories
-- `price`: Game price
-- `recommendations`: Number of recommendations (used as initial download count)
-- `developer`/`publisher`: Developer and publisher information
+- **Game**: Stores game metadata (appid, name, genres, categories, price, etc.).
+- **Rating**: User-provided star ratings (1-5).
+- **Review**: User-written feedback.
+- **Download**: Tracks user ownership of games.
+- **User**: Django's built-in user model (simulated via User ID in this prototype).
 
 ## Notes
 
-- The system uses SQLite by default for development
-- CORS is configured to allow requests from the Vue.js frontend
-- User authentication is simplified for this use case - you can use any user ID
-- For production, you should implement proper authentication and use a more robust database
-
-## Future Enhancements
-
-- Implement the actual neural network recommender system
-- Add user authentication and registration
-- Add more sophisticated recommendation algorithms
-- Add game images and media
-- Implement pagination for large game lists
-- Add filtering and sorting options
+- The system uses SQLite by default.
+- CORS is configured for development.
+- The recommender model is saved in `backend/games/ml_models/`.
 
