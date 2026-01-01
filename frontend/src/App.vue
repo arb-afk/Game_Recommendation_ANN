@@ -7,6 +7,7 @@
           <router-link to="/recommended" class="nav-link">Recommended</router-link>
           <router-link to="/all-games" class="nav-link">All Games</router-link>
           <router-link to="/my-games" class="nav-link">My Games</router-link>
+          <router-link to="/analytics" class="nav-link analytics-link">Analytics</router-link>
           <div class="user-info">
             <label>User ID</label>
             <div class="user-id-wrapper">
