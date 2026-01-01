@@ -135,3 +135,5 @@ REST_FRAMEWORK = {
 # CORS settings
 CORS_ALLOW_ALL_ORIGINS = True # Easier for development/demo. For strict prod, list domains.
 
+
+

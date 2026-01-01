@@ -48,3 +48,5 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f'✗ Database error: {e}'))
             self.stdout.write('  Make sure migrations are run: python manage.py migrate')
 
+
+

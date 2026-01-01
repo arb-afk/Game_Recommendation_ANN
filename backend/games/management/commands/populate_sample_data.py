@@ -119,3 +119,5 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Successfully populated sample data!'))
         self.stdout.write(f'Created {len(users)} users, {len(games)} games')
 
+
+

@@ -231,9 +231,11 @@ class RecommenderEngine:
         
         # We'll re-fetch just for candidates to ensure correctness
         # Use .values() again for speed
-        candidate_data = Game.objects.filter(id__in=candidate_ids).values('id', 'genres', 'recommendations')
+        # Optimization: Fetch ALL games to avoid SQLite "too many SQL variables" error
+        # caused by passing 65k+ IDs to id__in
+        all_games_data = Game.objects.all().values('id', 'genres', 'recommendations')
         
-        cand_map = {d['id']: d for d in candidate_data}
+        cand_map = {d['id']: d for d in all_games_data if d['id'] in set(candidate_ids)}
         
         genre_lists = []
         popularity_vals = []
